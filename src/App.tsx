@@ -8,6 +8,7 @@ import {useAuthState} from "react-firebase-hooks/auth"
 import { auth } from "./firebase/config"
 import Home from "./components/Home"
 import { sendEmailVerification } from "firebase/auth"
+import NotFoundPage from "./components/NotFoundPage"
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -15,7 +16,7 @@ const Navigation = () => {
   const location = useLocation();
   const [darkMode, setDarkMode] = useState(false);
 
-  // Load theme preference from localStorage on component mount
+
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
@@ -30,7 +31,7 @@ const Navigation = () => {
     }
   }, []);
 
-  // Toggle dark/light mode
+
   const toggleDarkMode = () => {
     const newDarkMode = !darkMode;
     setDarkMode(newDarkMode);
@@ -71,7 +72,7 @@ const Navigation = () => {
          
           {user ? 
             <>
-              <p>{user.email}</p>
+              <p style={{marginTop:"10px"}}>{user.displayName}</p>
               <button onClick={() => auth.signOut()
                 .then(() => {
                   navigate("/login");
@@ -241,28 +242,28 @@ function App() {
 
       <main>
         {user ? (
-          // User is logged in
+   
           user.emailVerified ? (
-            // User is verified - show all routes
+         
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/login" element={<Home />} /> {/* Redirect to home if already logged in */}
-              <Route path="/register" element={<Home />} /> {/* Redirect to home if already logged in */}
+              <Route path="/login" element={<Home />} /> 
+              <Route path="/register" element={<Home />} /> 
             </Routes>
           ) : (
-            // User is not verified - show verification prompt for all routes
+           
             <Routes>
               <Route path="*" element={<EmailVerificationPrompt user={user} />} />
             </Routes>
           )
         ) : (
-          // User is not logged in - show auth routes only
+
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<Register />} />
-            <Route path="*" element={<LoginPage />} /> {/* Redirect all other routes to login */}
+            <Route path="*" element={<NotFoundPage/>} /> 
           </Routes>
         )}
       </main>
