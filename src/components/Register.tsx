@@ -79,19 +79,19 @@ const Register = () => {
     setIsSubmitting(true);
 
     try {
-      // Create user account
+    
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const newUser = userCredential.user;
       
-      // Update profile with username
+      
       await updateProfile(newUser, {
         displayName: username,
       });
 
-      // Send verification email with custom settings
+  
       try {
         await sendEmailVerification(newUser, {
-          url: window.location.origin + '/login', // Redirect URL after verification
+          url: window.location.origin + '/login', 
           handleCodeInApp: false
         });
         
@@ -103,7 +103,6 @@ const Register = () => {
         setPassword('');
         setConfirmPassword('');
         
-        // Show success message with detailed instructions
         alert(`Account created successfully! 
         
 A verification email has been sent to: ${newUser.email}
@@ -120,8 +119,7 @@ Click the verification link in the email to activate your account.`);
         alert("Account created but there was an issue sending the verification email. You can try to resend it from the next screen.");
       }
       
-      // The App component will automatically handle showing the verification prompt
-      // since the user is now logged in but not verified
+ 
       
     } catch (error: any) {
       const errorCode = error.code;
