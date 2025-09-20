@@ -1,17 +1,17 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import "../App.css"
 import { auth } from '../firebase/config';
-import { updateProfile } from "firebase/auth";
+import { updateProfile, sendEmailVerification } from "firebase/auth";
 
 const Register = () => {
-  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState({
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState({
     password: "",
     confirmPassword: "",
     email: "",
@@ -49,13 +49,17 @@ const Register = () => {
       newErrors.confirmPassword = "Passwords don't match";
       isError = true;
     }
+    if (password && password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters";
+      isError = true;
+    }
 
-    setError(newErrors);
+    setFormErrors(newErrors);
     return isError;
   };
 
   const clearError = () => {
-    setError({
+    setFormErrors({
       password: "",
       confirmPassword: "",
       email: "",
@@ -72,37 +76,85 @@ const Register = () => {
     }
 
     clearError();
+    setIsSubmitting(true);
 
     try {
+      // Create user account
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      const newUser = userCredential.user;
       
-      await updateProfile(user, {
+      // Update profile with username
+      await updateProfile(newUser, {
         displayName: username,
-        // photoURL: "https://example.com/jane-q-user/profile.jpg"
       });
+
+      // Send verification email with custom settings
+      try {
+        await sendEmailVerification(newUser, {
+          url: window.location.origin + '/login', // Redirect URL after verification
+          handleCodeInApp: false
+        });
+        
+        console.log("Verification email sent to:", newUser.email);
+        
+        // Clear form
+        setEmail('');
+        setUsername('');
+        setPassword('');
+        setConfirmPassword('');
+        
+        // Show success message with detailed instructions
+        alert(`Account created successfully! 
+        
+A verification email has been sent to: ${newUser.email}
+
+Please check:
+1. Your inbox
+2. Spam/Junk folder
+3. Promotions tab (if using Gmail)
+
+Click the verification link in the email to activate your account.`);
+        
+      } catch (emailError) {
+        console.error("Error sending verification email:", emailError);
+        alert("Account created but there was an issue sending the verification email. You can try to resend it from the next screen.");
+      }
       
-      navigate("/");
+      // The App component will automatically handle showing the verification prompt
+      // since the user is now logged in but not verified
+      
     } catch (error: any) {
       const errorCode = error.code;
-      const newErrors = { ...error };
+      const newErrors = {
+        password: "",
+        confirmPassword: "",
+        email: "",
+        username: "",
+        general: "",
+      };
       
       switch (errorCode) {
         case "auth/email-already-in-use":
-          setError({ ...newErrors, email: "This email is already registered" });
+          setFormErrors({ ...newErrors, email: "This email is already registered" });
           break;
         case "auth/invalid-email":
-          setError({ ...newErrors, email: "Please enter a valid email address" });
+          setFormErrors({ ...newErrors, email: "Please enter a valid email address" });
           break;
         case "auth/weak-password":
-          setError({ ...newErrors, password: "Password should be at least 6 characters" });
+          setFormErrors({ ...newErrors, password: "Password should be at least 6 characters" });
           break;
         case "auth/network-request-failed":
-          setError({ ...newErrors, general: "Network error. Please check your connection" });
+          setFormErrors({ ...newErrors, general: "Network error. Please check your connection" });
+          break;
+        case "auth/too-many-requests":
+          setFormErrors({ ...newErrors, general: "Too many attempts. Please try again later" });
           break;
         default:
-          setError({ ...newErrors, general: "An unexpected error occurred. Please try again" });
+          setFormErrors({ ...newErrors, general: "An unexpected error occurred. Please try again" });
+          console.error("Registration error:", error);
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -114,7 +166,18 @@ const Register = () => {
           <p>Join us to start your coding journey</p>
         </div>
         <form className="auth-form" onSubmit={handleSubmit}>
-          {error.general && <p style={{ fontSize: "12px", color: "red" }}>{error.general}</p>}
+          {formErrors.general && (
+            <div style={{ 
+              backgroundColor: "#f8d7da", 
+              color: "#721c24", 
+              padding: "10px", 
+              borderRadius: "5px", 
+              fontSize: "14px",
+              marginBottom: "15px"
+            }}>
+              {formErrors.general}
+            </div>
+          )}
           
           <div className="form-group">
             <label htmlFor="email">Email</label>
@@ -126,8 +189,9 @@ const Register = () => {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="Enter your email"
+              disabled={isSubmitting}
             />
-            {error.email && <p style={{ fontSize: "12px", color: "red" }}>{error.email}</p>}
+            {formErrors.email && <p style={{ fontSize: "12px", color: "red", marginTop: "5px" }}>{formErrors.email}</p>}
           </div>
           
           <div className="form-group">
@@ -140,8 +204,9 @@ const Register = () => {
               onChange={(e) => setUsername(e.target.value)}
               required
               placeholder="Enter your username"
+              disabled={isSubmitting}
             />
-            {error.username && <p style={{ fontSize: "12px", color: "red" }}>{error.username}</p>}
+            {formErrors.username && <p style={{ fontSize: "12px", color: "red", marginTop: "5px" }}>{formErrors.username}</p>}
           </div>
           
           <div className="form-group">
@@ -153,9 +218,10 @@ const Register = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              placeholder="Create a password"
+              placeholder="Create a password (min 6 characters)"
+              disabled={isSubmitting}
             />
-            {error.password && <p style={{ fontSize: "12px", color: "red" }}>{error.password}</p>}
+            {formErrors.password && <p style={{ fontSize: "12px", color: "red", marginTop: "5px" }}>{formErrors.password}</p>}
           </div>
           
           <div className="form-group">
@@ -168,19 +234,30 @@ const Register = () => {
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               placeholder="Confirm your password"
+              disabled={isSubmitting}
             />
-            {error.confirmPassword && <p style={{ fontSize: "12px", color: "red" }}>{error.confirmPassword}</p>}
+            {formErrors.confirmPassword && <p style={{ fontSize: "12px", color: "red", marginTop: "5px" }}>{formErrors.confirmPassword}</p>}
           </div>
           
           <div className="form-options">
             <label className="checkbox-container">
-              <input type="checkbox" required />
+              <input type="checkbox" required disabled={isSubmitting} />
               <span className="checkmark"></span>
-              I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>
+              I agree to the <a href="#" target="_blank" rel="noopener noreferrer">Terms of Service</a> and <a href="#" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
             </label>
           </div>
           
-          <button type="submit" className="btn btn-primary btn-full">Create Account</button>
+          <button 
+            type="submit" 
+            className="btn btn-primary btn-full"
+            disabled={isSubmitting}
+            style={{ 
+              opacity: isSubmitting ? 0.7 : 1,
+              cursor: isSubmitting ? "not-allowed" : "pointer"
+            }}
+          >
+            {isSubmitting ? "Creating Account..." : "Create Account"}
+          </button>
         </form>
         
         <div className="auth-footer">
