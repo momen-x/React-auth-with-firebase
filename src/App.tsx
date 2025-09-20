@@ -1,4 +1,4 @@
-import { Link, Route, Routes, useLocation } from "react-router-dom"
+import { Link, Route, Routes, useLocation, useNavigate } from "react-router-dom"
 import Home from "./components/Home"
 import HtmlPage from "./components/HtmlPage"
 import JsPage from "./components/JsPage"
@@ -10,10 +10,60 @@ import { auth } from "./firebase/config"
 
 
 
+// Custom hook to block navigation
+// function useNavigationBlocker(when:any) {
+//   const navigate = useNavigate();
+  
+//   useEffect(() => {
+//     if (!when) return;
+
+//     // Handle browser back/forward buttons
+//     const handlePopState = (event:any) => {
+//       const message = "You have unsaved changes. Are you sure you want to leave?";
+//       if (!window.confirm(message)) {
+//         navigate(-1); // Go back to the current page
+//         window.history.pushState(null, '', window.location.pathname);
+//       }
+//     };
+
+//     window.history.pushState(null, '', window.location.pathname);
+//     window.addEventListener('popstate', handlePopState);
+
+//     return () => {
+//       window.removeEventListener('popstate', handlePopState);
+//     };
+//   }, [when, navigate]);
+
+//   // Handle internal link clicks
+//   useEffect(() => {
+//     if (!when) return;
+
+//     const handleLinkClick = (e:any) => {
+//       const link = e.target.closest('a');
+//       if (link && link.getAttribute('href')?.startsWith('/')) {
+//         const message = "You have unsaved changes. Are you sure you want to leave?";
+//         if (!window.confirm(message)) {
+//           e.preventDefault();
+//           e.stopPropagation();
+//         }
+//       }
+//     };
+
+//     document.addEventListener('click', handleLinkClick, true);
+    
+//     return () => {
+//       document.removeEventListener('click', handleLinkClick, true);
+//     };
+//   }, [when]);
+// }
+
+
 
 const Navigation = () => {
+  const navigate=useNavigate();
   const [user,loading,error]=useAuthState(auth);
-  const location = useLocation();
+  console.log("the user is : ",user?.displayName);
+    const location = useLocation();
   const [darkMode, setDarkMode] = useState(false);
 
   // Load theme preference from localStorage on component mount
@@ -47,12 +97,17 @@ const Navigation = () => {
           CodeLearn
         </Link>
         <nav className="nav-menu">
-          <Link to="/" className={location.pathname === '/' ? 'nav-link active' : 'nav-link'}>Home</Link>
+          {user? <><Link to="/" className={location.pathname === '/' ? 'nav-link active' : 'nav-link'}>Home</Link>
           <Link to="/html" className={location.pathname === '/html' ? 'nav-link active' : 'nav-link'}>HTML</Link>
-          <Link to="/js" className={location.pathname === '/js' ? 'nav-link active' : 'nav-link'}>JavaScript</Link>
+          <Link to="/js" className={location.pathname === '/js' ? 'nav-link active' : 'nav-link'}>JavaScript</Link></>:null}
+         
          {user? <>
          <p>{user.email}</p>
-         <button onClick={()=>auth.signOut().then(()=>{alert("sign out successfully")}).catch(()=>{alert("unexpected error , check from network")})}>Logout</button>
+         <button onClick={()=>auth.signOut().
+          then(()=>{navigate("/login");
+            
+          }).
+          catch(()=>{alert("unexpected error , check from network")})}>Logout</button>
          </>
          : <>
               <Link to="/login" className={location.pathname === '/login' ? 'nav-link active' : 'nav-link'}>Login</Link>
@@ -77,7 +132,19 @@ const Navigation = () => {
 
 
 function App() {
+  const navigate=useNavigate();
+ const [user]=useAuthState(auth);
 
+
+ 
+ useEffect(()=>{
+  if(user){
+    navigate("/"); 
+  }
+  else{
+    navigate("/login");  
+  }
+},[user])
 
   return (
 <div >
@@ -92,14 +159,17 @@ function App() {
 <Link to={"/login"}>Login</Link>
 <Link to={"/register"}>Register</Link>
   </header> */}
-<Routes>
+  {user?<Routes>
   <Route path="/" element={<Home/>}/>
   <Route path="/html" element={<HtmlPage/>}/>
   <Route path="/js" element={<JsPage/>}/>
-  <Route path="/login" element={<LoginPage/>}/>
-  <Route path="/register" element={<Register/>}/>
+ 
   {/* <Route path="/js" element={<JsPage/>}/> */}
-</Routes>
+</Routes>:<Routes>
+   <Route path="/login" element={<LoginPage/>}/>
+  <Route path="/register" element={<Register/>}/>
+  </Routes>}
+
 
 
 </div>
